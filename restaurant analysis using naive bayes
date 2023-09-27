@@ -1,0 +1,90 @@
+import numpy as np
+import pandas as pd
+from google.colab import files
+upload=files.upload()
+#NEW CELL
+data=pd.read_csv(r'/content/sentimentalreview_IBMpro.tsv', delimiter='\t')
+data.shape
+data.head(10)
+data.info
+#NEW CELL
+import nltk
+import re
+nltk.download('stopwords')
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer
+corpus=[]
+for i in range(0,1000):
+  review=re.sub(pattern='[^a-zA-Z]',repl=' ',string=str(data['Review'][i]))
+  review=review.lower()
+  review_words=review.split()
+  review_words=[word for word in review_words if not word in set(stopwords.words('english'))]
+  ps=PorterStemmer()
+  review=[ps.stem(word) for word in review_words]
+  review=' '.join(review)
+  corpus.append(review)
+corpus[:1500]
+#NEW CELL
+from sklearn.feature_extraction.text import CountVectorizer
+cv=CountVectorizer(max_features=1500)
+x=cv.fit_transform(corpus).toarray()
+y=data.iloc[:,1].values
+#NEW CELL
+#Modelsplitting data
+from sklearn.model_selection import train_test_split
+x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=0.2,random_state=0)
+
+print('x-traindata:',x_train.shape)
+print('x-testdata:',x_test.shape)
+
+print('y-traindata:',y_train.shape)
+print('y-testdata:',y_test.shape)
+#NEW CELL
+#Model Training
+from sklearn.naive_bayes import MultinomialNB
+c=MultinomialNB()
+c.fit(x_train,y_train)
+#NEWCELL
+y_pred=c.predict(x_test)
+y_pred
+#NEW CELL
+#Accuracy,precision,Recall
+from sklearn.metrics import accuracy_score,precision_score,recall_score,confusion_matrix
+asc=accuracy_score(y_test,y_pred)
+psc=precision_score(y_test,y_pred)
+rsc=recall_score(y_test,y_pred)
+print("AccuracyScore:{}%".format(round(asc*100,2)))
+print("PredictionScore:{}%".format(round(psc*100,2)))
+print("RecallScore:{}%".format(round(rsc*100,2)))
+cm=confusion_matrix(y_test,y_pred)
+cm
+#NEW CELL
+#splitting the confusion matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
+%matplotlib inline
+plt.figure(figsize=(10,6))
+sns.heatmap(cm,annot=True,cmap="YlGnBu",xticklabels=["Negative","Positive"],yticklabels=["Negative","Positive"])
+plt.xlabel('Predicted values')
+plt.ylabel('Actual values')
+classifier=MultinomialNB(alpha=0.2)
+classifier.fit(x_train,y_train)
+#NEW CELL
+#predictions
+def predict_sentiment(sample_review):
+    sample_review = re.sub(pattern='[^a-zA-Z]', repl=' ', string=sample_review)
+    sample_review = sample_review.lower()
+    sample_review_words = sample_review.split() 
+    ps = PorterStemmer()
+    final_review = [ps.stem(word) for word in sample_review_words if word not in set(stopwords.words('english'))]
+    final_review = ' '.join(final_review)
+    temp = cv.transform([final_review]).toarray()
+    prediction = classifier.predict(temp)
+    return prediction
+#NEWCELL
+sample_review = 'The food is neither gooddddddu nor bad'
+result = predict_sentiment(sample_review)
+if result == 1:
+    print("This is a positive review.")
+else:
+    print("This is a negative review.")
